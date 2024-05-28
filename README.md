@@ -81,13 +81,13 @@ cd dev
 ```
 Suba o docker
 ```bash
-docker-compose up
+docker-compose up --build
 ```
 Execute o aplicativo
 
 clique no botão "PLAY" no arquivo `LuizalabsApplication.java` ou no canto superior direito do IntelliJ IDEA.
 
-Para executar o aplicativo completo, use o seguinte comando:
+## Executando o Aplicativo  completo, use o seguinte comando:
 
 Suba o docker
 ```bash

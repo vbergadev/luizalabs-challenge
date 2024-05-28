@@ -11,5 +11,4 @@ import java.util.UUID;
 public interface ScheduleCommunicationRepository extends JpaRepository<ScheduleCommunication, UUID>{
     List<ScheduleCommunication> findByActive(boolean isActive);
     List<ScheduleCommunication> findByRecipient(String recipient);
-//    ScheduleCommunication cancelByRecipient(String recipient);
 }

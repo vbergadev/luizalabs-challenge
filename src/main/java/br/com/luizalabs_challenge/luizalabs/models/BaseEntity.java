@@ -8,7 +8,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Version;
 
-import java.io.Serializable;
 import java.sql.Types;
 import java.time.ZonedDateTime;
 import java.util.UUID;
