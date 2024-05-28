@@ -1,7 +1,9 @@
-package br.com.luizalabs_challenge.luizalabs.models;
+package br.com.luizalabs_challenge.luizalabs.controllers;
 
-import br.com.luizalabs_challenge.luizalabs.controllers.ScheduleCommunicationController;
 import br.com.luizalabs_challenge.luizalabs.controllers.dto.ScheduleCommunicationDto;
+import br.com.luizalabs_challenge.luizalabs.models.CommunicationStatus;
+import br.com.luizalabs_challenge.luizalabs.models.ScheduleCommunication;
+import br.com.luizalabs_challenge.luizalabs.models.SendMethod;
 import br.com.luizalabs_challenge.luizalabs.rabbitmq.QueueSender;
 import br.com.luizalabs_challenge.luizalabs.repositories.ScheduleCommunicationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,27 +11,17 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
 public class ScheduleCommunicationControllerTest {
-
-    private MockMvc mockMvc;
 
     @Mock
     private QueueSender queueSender;
@@ -43,136 +35,142 @@ public class ScheduleCommunicationControllerTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        this.mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        controller = new ScheduleCommunicationController(queueSender, repository);
     }
 
-    private void setId(ScheduleCommunication scheduleCommunication, UUID id) {
-        try {
-            Field idField = ScheduleCommunication.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(scheduleCommunication, id);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Test
-    public void testAdd() throws Exception {
+    public void testAdd() {
         ScheduleCommunicationDto dto = new ScheduleCommunicationDto();
         List<ScheduleCommunicationDto> dtoList = List.of(dto);
 
-        mockMvc.perform(post("/schedule-communication/")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("[{}]"))
-                .andExpect(status().isOk());
+        controller.add(dtoList);
 
         verify(queueSender, times(1)).send(any(ScheduleCommunication.class));
     }
 
     @Test
-    public void testCancel() throws Exception {
+    public void testCancel() {
         UUID id = UUID.randomUUID();
         ScheduleCommunication scheduleCommunication = new ScheduleCommunication();
-        setId(scheduleCommunication, id);
 
         when(repository.findById(id)).thenReturn(Optional.of(scheduleCommunication));
 
-        mockMvc.perform(patch("/schedule-communication/" + id))
-                .andExpect(status().isOk());
+        controller.cancel(id);
 
         assertEquals(false, scheduleCommunication.isActive());
-        verify(queueSender, times(1)).send(any(ScheduleCommunication.class));
+        verify(queueSender, times(1)).send(scheduleCommunication);
     }
 
     @Test
-    public void testPatchStatus() throws Exception {
+    public void testPatchStatus() {
         UUID id = UUID.randomUUID();
         ScheduleCommunication scheduleCommunication = new ScheduleCommunication();
-        setId(scheduleCommunication, id);
         CommunicationStatus status = CommunicationStatus.SENT;
 
         when(repository.findById(id)).thenReturn(Optional.of(scheduleCommunication));
 
-        mockMvc.perform(patch("/schedule-communication/" + id + "/status")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"SENT\"}"))
-                .andExpect(status().isOk());
+        controller.patchStatus(id, status);
 
         assertEquals(status, scheduleCommunication.getStatus());
-        verify(queueSender, times(1)).send(any(ScheduleCommunication.class));
+        verify(queueSender, times(1)).send(scheduleCommunication);
     }
 
     @Test
-    public void testPatchRecipient() throws Exception {
+    public void testPatchStatusFailure() {
+        UUID id = UUID.randomUUID();
+        CommunicationStatus status = CommunicationStatus.SENT;
+
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> controller.patchStatus(id, status));
+    }
+
+    @Test
+    public void testPatchRecipient() {
         UUID id = UUID.randomUUID();
         ScheduleCommunication scheduleCommunication = new ScheduleCommunication();
-        setId(scheduleCommunication, id);
         String recipient = "test@example.com";
 
         when(repository.findById(id)).thenReturn(Optional.of(scheduleCommunication));
 
-        mockMvc.perform(patch("/schedule-communication/" + id + "/recipient")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("\"" + recipient + "\""))
-                .andExpect(status().isOk());
+        controller.patchRecipient(id, recipient);
 
         assertEquals(recipient, scheduleCommunication.getRecipient());
-        verify(queueSender, times(1)).send(any(ScheduleCommunication.class));
+        verify(queueSender, times(1)).send(scheduleCommunication);
     }
 
     @Test
-    public void testPatchType() throws Exception {
+    public void testPatchRecipientFailure() {
+        UUID id = UUID.randomUUID();
+        String recipient = "test@example.com";
+
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+
+        assertThrows(RuntimeException.class, () -> controller.patchRecipient(id, recipient));
+    }
+
+    @Test
+    public void testPatchType() {
         UUID id = UUID.randomUUID();
         ScheduleCommunication scheduleCommunication = new ScheduleCommunication();
-        setId(scheduleCommunication, id);
         SendMethod type = SendMethod.EMAIL;
 
         when(repository.findById(id)).thenReturn(Optional.of(scheduleCommunication));
 
-        mockMvc.perform(patch("/schedule-communication/" + id + "/type")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("\"EMAIL\""))
-                .andExpect(status().isOk());
+        controller.patchType(id, type);
 
         assertEquals(type, scheduleCommunication.getType());
-        verify(queueSender, times(1)).send(any(ScheduleCommunication.class));
+        verify(queueSender, times(1)).send(scheduleCommunication);
     }
 
     @Test
-    public void testListOnlyActives() throws Exception {
+    public void testPatchTypeFailure() {
+        UUID id = UUID.randomUUID();
+        SendMethod type = SendMethod.EMAIL;
+
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> controller.patchType(id, type));
+    }
+
+    @Test
+    public void testListOnlyActives() {
         ScheduleCommunication activeCommunication = new ScheduleCommunication();
         activeCommunication.setActive(true);
 
         when(repository.findAll()).thenReturn(List.of(activeCommunication));
 
-        mockMvc.perform(get("/schedule-communication/"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+        List<ScheduleCommunication> result = controller.listOnlyActives();
+
+        assertEquals(1, result.size());
+        assertEquals(activeCommunication, result.get(0));
     }
 
     @Test
-    public void testGetByRecipient() throws Exception {
+    public void testGetByRecipient() {
         String recipient = "test@example.com";
         ScheduleCommunication communication = new ScheduleCommunication();
         communication.setRecipient(recipient);
 
         when(repository.findByRecipient(recipient)).thenReturn(List.of(communication));
 
-        mockMvc.perform(get("/schedule-communication/recipient/" + recipient))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+        List<ScheduleCommunication> result = controller.getByRecipient(recipient);
+
+        assertEquals(1, result.size());
+        assertEquals(communication, result.get(0));
     }
 
     @Test
-    public void testGetById() throws Exception {
+    public void testGetById() {
         UUID id = UUID.randomUUID();
         ScheduleCommunication scheduleCommunication = new ScheduleCommunication();
-        setId(scheduleCommunication, id);
 
         when(repository.findById(id)).thenReturn(Optional.of(scheduleCommunication));
 
-        mockMvc.perform(get("/schedule-communication/" + id))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(id.toString()));
+        ScheduleCommunication result = controller.getById(id);
+
+        assertEquals(scheduleCommunication, result);
     }
 }
