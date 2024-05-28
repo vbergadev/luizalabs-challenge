@@ -1,0 +1,1 @@
+ALTER TABLE schedule ADD COLUMN active Boolean NOT NULL DEFAULT TRUE;
