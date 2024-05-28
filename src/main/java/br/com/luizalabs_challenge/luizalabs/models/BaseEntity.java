@@ -12,15 +12,17 @@ import java.io.Serializable;
 import java.sql.Types;
 import java.time.ZonedDateTime;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 
-@Data
 @MappedSuperclass
+@Generated
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
+@EqualsAndHashCode
 public class BaseEntity {
 
     @Id
