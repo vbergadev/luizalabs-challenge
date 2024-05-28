@@ -9,27 +9,9 @@ services:
       - 5444:5432
     networks:
       - luizalabs
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      - db
-      - rabbitmq
-    ports:
-      - 8080:8080
-    environment:
-      DATASOURCE_PASSWORD: postgres
-      DATASOURCE_URL: jdbc:postgresql://db:5432/
-      DATASOURCE_USERNAME: postgres
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PASSWORD: teste
-      RABBITMQ_USERNAME: teste
-    networks:
-      - luizalabs
   rabbitmq:
     build:
-      context: ./rabbitmq
+      context: ../rabbitmq
       dockerfile: Dockerfile
     image: rabbitmq:management
     container_name: rabbitmq
